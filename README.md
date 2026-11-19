@@ -15,6 +15,16 @@ npm run dev
 
 Scripts: `npm test` (calculator unit tests), `npm run typecheck`, `npm run build`.
 
+### Integration checks
+
+With a migrated Postgres and the app running (`npm run build && npm start`, env vars set, `BILLING_WEBHOOK_SECRET=whsec`, `CRON_SECRET=testcron`):
+
+```bash
+DATABASE_URL=postgresql://... node scripts/integration.mjs
+```
+
+It covers sign-up, webhook upgrade/replay/cancel/expire, Pro ad suppression, premium content gating, and the cron job. The free-tier limits (1 budget, 3 bills) and the sign-up-to-save handoff go through server actions and were verified manually in a browser.
+
 ## How the pieces fit
 
 | Area | Where |
