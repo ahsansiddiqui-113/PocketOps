@@ -1,26 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fbfbf9;
+  --background: #f3f5fa;
   --foreground: #1a1d21;
   --card: #ffffff;
-  --muted: #eef0ec;
-  --muted-foreground: #5b6470;
-  --border: #dcdfd8;
+  --muted: #e8ecf5;
+  --muted-foreground: #526077;
+  --border: #d3d9e6;
   --primary: #0f6b4f;
   --primary-foreground: #ffffff;
   --danger: #b42318;
   --warn: #b54708;
+  --b-need: #3b6fd8;
+  --b-want: #d9822b;
+  --b-saving: #0f6b4f;
+  --b-debt: #c2414b;
+  --shadow: 0 1px 2px rgb(20 24 28 / 0.06), 0 8px 24px -8px rgb(20 24 28 / 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #101311;
-    --foreground: #eceee9;
-    --card: #181c19;
-    --muted: #222723;
-    --muted-foreground: #a0a99f;
-    --border: #2f362f;
+    --b-need: #6c9bff;
+    --b-want: #ffb35c;
+    --b-saving: #3ecf9b;
+    --b-debt: #ff7a85;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px -10px rgb(0 0 0 / 0.6);
+    --background: #0a0e16;
+    --foreground: #e9edf6;
+    --card: #111724;
+    --muted: #1a2232;
+    --muted-foreground: #9aa8c0;
+    --border: #243049;
     --primary: #3ecf9b;
     --primary-foreground: #06251a;
     --danger: #f97066;
@@ -42,9 +52,92 @@
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(900px 520px at 12% -8%, color-mix(in srgb, var(--b-need) 20%, transparent), transparent 70%),
+    radial-gradient(800px 480px at 95% 4%, color-mix(in srgb, var(--b-saving) 18%, transparent), transparent 70%),
+    radial-gradient(900px 600px at 50% 112%, color-mix(in srgb, var(--b-want) 12%, transparent), transparent 70%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+h1,
+h2 {
+  letter-spacing: -0.03em;
+}
+
+.glass {
+  background: color-mix(in srgb, var(--background) 78%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+}
+
+/* Hero 3D stage: gradient fallback is always there; the canvas draws over it. */
+.hero-stage {
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.hero-fallback {
+  background:
+    radial-gradient(60% 70% at 25% 30%, color-mix(in srgb, var(--b-need) 28%, transparent), transparent 70%),
+    radial-gradient(55% 65% at 80% 35%, color-mix(in srgb, var(--b-saving) 30%, transparent), transparent 70%),
+    radial-gradient(50% 50% at 55% 95%, color-mix(in srgb, var(--b-want) 26%, transparent), transparent 70%),
+    var(--card);
+}
+
+/* Pointer tilt card (mouse only; flat for touch + reduced motion). */
+.tilt {
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 160ms ease-out, box-shadow 200ms;
+}
+@media (hover: hover) and (pointer: fine) {
+  .tilt:hover {
+    will-change: transform;
+    box-shadow: 0 18px 40px -14px color-mix(in srgb, var(--accent, var(--primary)) 45%, transparent);
+  }
+  .tilt:hover::after {
+    opacity: 1;
+  }
+}
+.tilt:focus-visible {
+  outline: 2px solid var(--accent, var(--primary));
+  outline-offset: 3px;
+}
+.tilt:focus-visible::after {
+  opacity: 1;
+}
+.tilt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms;
+  background: radial-gradient(260px circle at var(--gx, 50%) var(--gy, 0%), color-mix(in srgb, var(--accent, var(--primary)) 22%, transparent), transparent 60%);
+}
+/* Isometric-looking bucket column used in the Budget Splitter. */
+.bucket-col {
+  width: 100%;
+  border-radius: 8px 8px 4px 4px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 88%, white) 0%, var(--c) 100%);
+  width: 62%;
+  box-shadow: 5px -3px 0 -1px color-mix(in srgb, var(--c) 55%, black), inset 0 1px 0 rgb(255 255 255 / 0.35);
+  transition: height 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tilt {
+    transform: none !important;
+    transition: none;
+  }
+  .bucket-col {
+    transition: none;
+  }
 }
 
 @layer components {
@@ -58,7 +151,7 @@ body {
     @apply w-full rounded-md border border-border bg-card px-3 py-2 text-sm;
   }
   .card {
-    @apply rounded-xl border border-border bg-card p-5;
+    @apply rounded-[14px] border border-border bg-card p-5;
   }
   .prose-lite h2 {
     @apply mt-8 mb-3 text-2xl font-semibold;
@@ -78,4 +171,24 @@ body {
   .prose-lite a {
     @apply text-primary underline;
   }
+}
+
+/* Fine dot grid behind everything; fades out toward the bottom of the viewport. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(color-mix(in srgb, var(--foreground) 16%, transparent) 1px, transparent 1.2px);
+  background-size: 26px 26px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 75%);
+  mask-image: linear-gradient(to bottom, #000 0%, transparent 75%);
+}
+
+/* Visible keyboard focus everywhere. */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
 }

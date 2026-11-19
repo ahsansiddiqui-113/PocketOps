@@ -11,7 +11,7 @@ import { formatMoneyFromCents } from "@/lib/currency";
 import { requireViewer } from "@/lib/viewer";
 
 export default async function BudgetsPage() {
-  const viewer = await requireViewer();
+  const viewer = await requireViewer("/dashboard/budgets");
   const budgets = await db.select().from(savedBudgets).where(eq(savedBudgets.userId, viewer.userId)).orderBy(desc(savedBudgets.createdAt));
   const fmt = (c: number) => formatMoneyFromCents(c, viewer.currencyCode);
 

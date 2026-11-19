@@ -5,6 +5,7 @@ import {
   text,
   boolean,
   bigint,
+  smallint,
   date,
   timestamp,
   jsonb,
@@ -111,6 +112,8 @@ export const subscriptions = pgTable(
     status: subStatusEnum("status").notNull(),
     currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }).notNull(),
     cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+    // Provider's own updated_at: lets us ignore stale/out-of-order webhook deliveries.
+    providerUpdatedAt: timestamp("provider_updated_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
@@ -163,6 +166,8 @@ export const recurringBills = pgTable(
     billingCycle: billingCycleEnum("billing_cycle").default("monthly").notNull(),
     nextDueDate: date("next_due_date", { mode: "string" }).notNull(),
     remindDaysBefore: bigint("remind_days_before", { mode: "number" }).default(2).notNull(),
+    // Original day-of-month (1-31) so a bill due on the 31st survives short months.
+    anchorDay: smallint("anchor_day"),
     lastRemindedForDate: date("last_reminded_for_date", { mode: "string" }),
     isActive: boolean("is_active").default(true).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

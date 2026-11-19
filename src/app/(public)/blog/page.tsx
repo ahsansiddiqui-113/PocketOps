@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getAllPostsMeta } from "@/lib/mdx";
 
 export const metadata: Metadata = {
-  title: "Money Guides",
+  title: "Blog",
   description: "Practical, plain-English guides on budgeting, subscriptions and take-home pay.",
 };
 
@@ -11,7 +11,8 @@ export default function BlogIndex() {
   const posts = getAllPostsMeta();
   return (
     <div>
-      <h1 className="mb-5 text-3xl font-bold">Money Guides</h1>
+      <h1 className="text-3xl font-bold">Blog</h1>
+      <p className="mb-6 mt-1 text-muted-foreground">Plain-English money guides, each with a calculator you can try.</p>
       <ul className="space-y-5">
         {posts.map((p) => (
           <li key={p.slug} className="card">

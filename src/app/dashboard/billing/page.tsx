@@ -5,7 +5,7 @@ import { UpgradeButtons } from "@/components/paywall/PaywallModal";
 import { requireViewer } from "@/lib/viewer";
 
 export default async function BillingPage() {
-  const viewer = await requireViewer();
+  const viewer = await requireViewer("/dashboard/billing");
   const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.userId, viewer.userId)).limit(1);
 
   return (

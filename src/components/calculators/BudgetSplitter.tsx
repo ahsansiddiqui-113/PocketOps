@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createBudgetAction } from "@/actions/budget.actions";
 import { PaywallModal } from "@/components/paywall/PaywallModal";
+import { BucketBlocks } from "./BucketBlocks";
 import { analyzeBudget } from "@/lib/calculators/budget";
 import { dollarsToCents, formatMoneyFromCents } from "@/lib/currency";
 import { PENDING_BUDGET_KEY, replaceQuery } from "@/lib/url-state";
@@ -110,6 +111,15 @@ export function BudgetSplitter({
           </div>
         ))}
       </div>
+
+      <BucketBlocks
+        percents={{
+          need: incomeCents > 0 ? Math.round((analysis.needsCents / incomeCents) * 100) : 0,
+          want: incomeCents > 0 ? Math.round((analysis.wantsCents / incomeCents) * 100) : 0,
+          saving: analysis.savingsPercent ? Math.round(analysis.savingsPercent) : 0,
+          debt: incomeCents > 0 ? Math.round((analysis.debtCents / incomeCents) * 100) : 0,
+        }}
+      />
 
       <dl className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div><dt className="text-muted-foreground">Allocated</dt><dd className="font-semibold">{fmt(analysis.totalAllocatedCents)}</dd></div>

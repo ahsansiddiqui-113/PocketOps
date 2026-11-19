@@ -9,9 +9,19 @@ Next.js 16 (App Router) · Postgres + Drizzle · Better Auth · Lemon Squeezy ·
 ```bash
 npm install
 cp .env.example .env.local   # fill in DATABASE_URL, BETTER_AUTH_SECRET, etc.
-npm run db:push              # create tables
+npm run db:push              # create tables (reads .env.local)
 npm run dev
 ```
+
+No Postgres handy? Run a dedicated one in Docker on its own port (so it can't clash with another project's database):
+
+```bash
+docker run -d --name clearledger-pg -e POSTGRES_PASSWORD=clearledger_dev -e POSTGRES_DB=clearledger \
+  -p 54329:5432 -v clearledger_pgdata:/var/lib/postgresql/data postgres:16
+# DATABASE_URL="postgresql://postgres:clearledger_dev@localhost:54329/clearledger"
+```
+
+Restart `npm run dev` after editing `.env.local` — Next only reads it at startup. A sign-up that returns **500** almost always means `DATABASE_URL` is unset/unreachable or `db:push` hasn't been run (pull in schema changes with `db:push` too).
 
 Scripts: `npm test` (calculator unit tests), `npm run typecheck`, `npm run build`.
 

@@ -1,9 +1,10 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
-import { and, eq, lte, ne, or, isNull, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, lt, lte, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { recurringBills, users } from "@/db/schema";
 import { formatMoneyFromCents } from "@/lib/currency";
+import { rollForward } from "@/lib/dates";
 import { sendEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -21,9 +22,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const todayStr = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD' (UTC)
+  const todayStr = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD' (UTC; no per-user timezone yet)
 
-  // 1. Active Pro bills inside their reminder window, not yet reminded for this due date.
+  // 1. Active Pro bills inside their reminder window. Only today-or-future dates: a bill that is
+  //    already overdue is rolled forward below, not emailed with a stale date.
   const dueSoon = await db
     .select({
       billId: recurringBills.id,
@@ -39,19 +41,31 @@ export async function GET(req: Request) {
       and(
         eq(recurringBills.isActive, true),
         eq(users.plan, "pro"),
+        gte(recurringBills.nextDueDate, todayStr),
         lte(
           recurringBills.nextDueDate,
           sql`(${todayStr}::date + make_interval(days => ${recurringBills.remindDaysBefore}::int))::date`
         ),
-        or(
-          isNull(recurringBills.lastRemindedForDate),
-          ne(recurringBills.lastRemindedForDate, recurringBills.nextDueDate)
-        )
+        or(isNull(recurringBills.lastRemindedForDate), ne(recurringBills.lastRemindedForDate, recurringBills.nextDueDate))
       )
     );
 
   let sentCount = 0;
   for (const row of dueSoon) {
+    // Claim first (atomic): if another run already claimed this due date, skip. Two overlapping
+    // invocations therefore can't both email.
+    const claimed = await db
+      .update(recurringBills)
+      .set({ lastRemindedForDate: row.nextDueDate })
+      .where(
+        and(
+          eq(recurringBills.id, row.billId),
+          or(isNull(recurringBills.lastRemindedForDate), ne(recurringBills.lastRemindedForDate, row.nextDueDate))
+        )
+      )
+      .returning({ id: recurringBills.id });
+    if (claimed.length === 0) continue;
+
     const sent = await sendEmail({
       to: row.userEmail,
       subject: `Upcoming Bill: ${row.billName} due ${row.nextDueDate}`,
@@ -61,29 +75,30 @@ export async function GET(req: Request) {
       )}) is scheduled for ${row.nextDueDate}.`,
     });
 
-    // Only mark reminded when the email really went out (or email is unconfigured,
-    // so dev runs don't loop forever); a failed send is retried on the next run.
-    if (sent.ok || sent.skipped) {
-      await db
-        .update(recurringBills)
-        .set({ lastRemindedForDate: row.nextDueDate })
-        .where(eq(recurringBills.id, row.billId));
+    if (sent.ok) {
+      sentCount += 1;
+    } else if (!sent.skipped) {
+      // Real send failure: release the claim so the next run retries.
+      await db.update(recurringBills).set({ lastRemindedForDate: null }).where(eq(recurringBills.id, row.billId));
     }
-    if (sent.ok) sentCount += 1;
   }
 
-  // 2. Roll past-due bills forward by their cycle until they are in the future,
-  //    so a bill missed for several cycles doesn't lag behind.
-  await db.execute(sql`
-    UPDATE recurring_bills
-    SET next_due_date = CASE billing_cycle
-      WHEN 'weekly' THEN (next_due_date + INTERVAL '7 days')::date
-      WHEN 'monthly' THEN (next_due_date + INTERVAL '1 month')::date
-      WHEN 'quarterly' THEN (next_due_date + INTERVAL '3 months')::date
-      WHEN 'yearly' THEN (next_due_date + INTERVAL '1 year')::date
-    END
-    WHERE is_active = true AND next_due_date < ${todayStr}::date
-  `);
+  // 2. Roll every overdue bill forward past today in one step (all missed cycles), computed from
+  //    the original date + anchor day so a bill due on the 31st doesn't drift to the 28th.
+  const overdue = await db
+    .select({
+      id: recurringBills.id,
+      nextDueDate: recurringBills.nextDueDate,
+      billingCycle: recurringBills.billingCycle,
+      anchorDay: recurringBills.anchorDay,
+    })
+    .from(recurringBills)
+    .where(and(eq(recurringBills.isActive, true), lt(recurringBills.nextDueDate, todayStr)));
 
-  return NextResponse.json({ ok: true, remindersSent: sentCount, date: todayStr });
+  for (const bill of overdue) {
+    const next = rollForward(bill.nextDueDate, bill.billingCycle, todayStr, bill.anchorDay);
+    await db.update(recurringBills).set({ nextDueDate: next }).where(eq(recurringBills.id, bill.id));
+  }
+
+  return NextResponse.json({ ok: true, remindersSent: sentCount, rolledForward: overdue.length, date: todayStr });
 }

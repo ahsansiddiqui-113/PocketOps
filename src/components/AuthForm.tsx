@@ -7,7 +7,15 @@ import { authClient } from "@/lib/auth-client";
 
 /** Only allow same-site relative redirects (blocks open-redirect via ?next=). */
 function safeNext(next: string | null): string {
-  if (next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\")) return next;
+  if (!next) return "/dashboard";
+  try {
+    // Resolve like a browser would (it strips tabs/newlines, e.g. "/%09/evil.com" -> "//evil.com")
+    // and only accept the result if it stays on our origin.
+    const u = new URL(next, window.location.origin);
+    if (u.origin === window.location.origin && u.pathname.startsWith("/")) return u.pathname + u.search + u.hash;
+  } catch {
+    /* fall through */
+  }
   return "/dashboard";
 }
 

@@ -8,7 +8,7 @@ import { formatMoneyFromCents } from "@/lib/currency";
 import { requireViewer } from "@/lib/viewer";
 
 export default async function BillsPage() {
-  const viewer = await requireViewer();
+  const viewer = await requireViewer("/dashboard/bills");
   const bills = await db.select().from(recurringBills).where(eq(recurringBills.userId, viewer.userId)).orderBy(asc(recurringBills.nextDueDate));
 
   return (

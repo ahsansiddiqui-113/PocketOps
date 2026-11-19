@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { eq, count, and } from "drizzle-orm";
+import { eq, count, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { savedBudgets } from "@/db/schema";
@@ -32,32 +32,39 @@ export async function createBudgetAction(rawInput: unknown) {
     return { ok: false as const, code: "INVALID_INPUT" as const, issues: parsed.error.issues };
   }
 
-  if (!viewer.isPro) {
-    const [{ value: existingCount }] = await db
-      .select({ value: count() })
-      .from(savedBudgets)
-      .where(eq(savedBudgets.userId, viewer.userId));
+  // Count + insert under a per-user advisory lock so parallel requests can't all pass the check.
+  const created = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`budgets:${viewer.userId}`}))`);
 
-    if (existingCount >= PLAN_LIMITS.free.maxSavedBudgets) {
-      return {
-        ok: false as const,
-        code: "UPGRADE_REQUIRED" as const,
-        reason: "FREE_BUDGET_LIMIT_REACHED" as const,
-      };
+    if (!viewer.isPro) {
+      const [{ value: existingCount }] = await tx
+        .select({ value: count() })
+        .from(savedBudgets)
+        .where(eq(savedBudgets.userId, viewer.userId));
+      if (existingCount >= PLAN_LIMITS.free.maxSavedBudgets) return null;
     }
-  }
 
-  const [created] = await db
-    .insert(savedBudgets)
-    .values({
-      userId: viewer.userId,
-      title: parsed.data.title,
-      monthYear: parsed.data.monthYear,
-      netIncomeCents: parsed.data.netIncomeCents,
-      allocations: parsed.data.allocations,
-      notes: parsed.data.notes ?? null,
-    })
-    .returning();
+    const [row] = await tx
+      .insert(savedBudgets)
+      .values({
+        userId: viewer.userId,
+        title: parsed.data.title,
+        monthYear: parsed.data.monthYear,
+        netIncomeCents: parsed.data.netIncomeCents,
+        allocations: parsed.data.allocations,
+        notes: parsed.data.notes ?? null,
+      })
+      .returning();
+    return row;
+  });
+
+  if (!created) {
+    return {
+      ok: false as const,
+      code: "UPGRADE_REQUIRED" as const,
+      reason: "FREE_BUDGET_LIMIT_REACHED" as const,
+    };
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/budgets");
