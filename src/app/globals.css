@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fbfbf9;
+  --foreground: #1a1d21;
+  --card: #ffffff;
+  --muted: #eef0ec;
+  --muted-foreground: #5b6470;
+  --border: #dcdfd8;
+  --primary: #0f6b4f;
+  --primary-foreground: #ffffff;
+  --danger: #b42318;
+  --warn: #b54708;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #101311;
+    --foreground: #eceee9;
+    --card: #181c19;
+    --muted: #222723;
+    --muted-foreground: #a0a99f;
+    --border: #2f362f;
+    --primary: #3ecf9b;
+    --primary-foreground: #06251a;
+    --danger: #f97066;
+    --warn: #fdb022;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md border border-border bg-card px-4 py-2 text-sm font-medium transition hover:bg-muted disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply border-transparent bg-primary text-primary-foreground hover:opacity-90 hover:bg-primary;
+  }
+  .input {
+    @apply w-full rounded-md border border-border bg-card px-3 py-2 text-sm;
+  }
+  .card {
+    @apply rounded-xl border border-border bg-card p-5;
+  }
+  .prose-lite h2 {
+    @apply mt-8 mb-3 text-2xl font-semibold;
+  }
+  .prose-lite h3 {
+    @apply mt-6 mb-2 text-xl font-semibold;
+  }
+  .prose-lite p {
+    @apply my-4 leading-7;
+  }
+  .prose-lite ul {
+    @apply my-4 list-disc pl-6;
+  }
+  .prose-lite li {
+    @apply my-1;
+  }
+  .prose-lite a {
+    @apply text-primary underline;
+  }
+}
