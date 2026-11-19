@@ -17,6 +17,23 @@ export const auth = betterAuth({
   advanced: {
     database: { generateId: false },
   },
+  // Production trusts only the configured URL. In development any localhost port is trusted,
+  // so `next dev` falling back to 3001/3002 (when 3000 is busy) doesn't break sign-in.
+  trustedOrigins: async (request) => {
+    const origins = [process.env.BETTER_AUTH_URL, process.env.NEXT_PUBLIC_APP_URL].filter((o): o is string => Boolean(o));
+    if (process.env.NODE_ENV !== "production") {
+      const origin = request?.headers.get("origin");
+      if (origin) {
+        try {
+          const { hostname } = new URL(origin);
+          if (hostname === "localhost" || hostname === "127.0.0.1") origins.push(origin);
+        } catch {
+          /* ignore malformed Origin */
+        }
+      }
+    }
+    return origins;
+  },
   emailAndPassword: {
     enabled: true,
   },
